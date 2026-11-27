@@ -2,28 +2,35 @@ name: setup-cost
 on: [push, workflow_dispatch]
 permissions:
   contents: read
+env:
+  GH_TOKEN: ${{ github.token }}
 jobs:
   before:
     runs-on: ubuntu-latest
     steps:
-      - run: curl -s -H "Authorization: Bearer ${{ github.token }}" https://api.github.com/rate_limit | jq -c .resources.core
-      - run: sleep 5; curl -s -H "Authorization: Bearer ${{ github.token }}" https://api.github.com/rate_limit | jq -c .resources.core
+      - run: gh api rate_limit --jq .resources.core
+      - run: sleep 5 && gh api rate_limit --jq .resources.core
   selfref1:
     needs: before
     runs-on: ubuntu-latest
     steps:
-      - run: curl -s -H "Authorization: Bearer ${{ github.token }}" https://api.github.com/rate_limit | jq -c .resources.core
+      - run: gh api rate_limit --jq .resources.core
       - uses: arimendelow/actions-token-probe/.github/actions/noop@b59e1517e949413437e65b45fd8da5415ef0284a
-      - run: curl -s -H "Authorization: Bearer ${{ github.token }}" https://api.github.com/rate_limit | jq -c .resources.core
+      - run: gh api rate_limit --jq .resources.core
   selfref2:
     needs: selfref1
     runs-on: ubuntu-latest
     steps:
       - uses: arimendelow/actions-token-probe/.github/actions/noop@b59e1517e949413437e65b45fd8da5415ef0284a
-      - run: curl -s -H "Authorization: Bearer ${{ github.token }}" https://api.github.com/rate_limit | jq -c .resources.core
-  after:
+      - run: gh api rate_limit --jq .resources.core
+  pinned:
     needs: selfref2
     runs-on: ubuntu-latest
     steps:
-      - run: curl -s -H "Authorization: Bearer ${{ github.token }}" https://api.github.com/rate_limit | jq -c .resources.core
-# run 3
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+      - run: gh api rate_limit --jq .resources.core
+  after:
+    needs: pinned
+    runs-on: ubuntu-latest
+    steps:
+      - run: gh api rate_limit --jq .resources.core
