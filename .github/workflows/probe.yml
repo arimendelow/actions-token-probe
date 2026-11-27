@@ -1,0 +1,45 @@
+name: actions token probe
+on: workflow_dispatch
+permissions:
+  contents: read
+  actions: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: used before checkout
+        run: echo "U0=$(curl -s -H "Authorization: Bearer $GH_TOKEN" https://api.github.com/rate_limit | jq .resources.core.used)" >> "$GITHUB_ENV"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: after checkout
+        run: echo "U1=$(curl -s -H "Authorization: Bearer $GH_TOKEN" https://api.github.com/rate_limit | jq .resources.core.used)" >> "$GITHUB_ENV"
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: probe-cache
+          key: probe-${{ github.run_id }}
+      - name: after cache restore
+        run: echo "U2=$(curl -s -H "Authorization: Bearer $GH_TOKEN" https://api.github.com/rate_limit | jq .resources.core.used)" >> "$GITHUB_ENV"
+      - run: mkdir -p probe-cache out && date > probe-cache/x && date > out/a.txt
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: probe-cache
+          key: probe-${{ github.run_id }}
+      - name: after cache save
+        run: echo "U3=$(curl -s -H "Authorization: Bearer $GH_TOKEN" https://api.github.com/rate_limit | jq .resources.core.used)" >> "$GITHUB_ENV"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: probe-${{ github.run_attempt }}
+          path: out/a.txt
+      - name: after upload-artifact
+        run: echo "U4=$(curl -s -H "Authorization: Bearer $GH_TOKEN" https://api.github.com/rate_limit | jq .resources.core.used)" >> "$GITHUB_ENV"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: probe-${{ github.run_attempt }}
+          path: dl
+      - name: after download-artifact
+        run: |
+          U5=$(curl -s -H "Authorization: Bearer $GH_TOKEN" https://api.github.com/rate_limit | jq .resources.core.used)
+          echo "PROBE used: start=$U0 checkout=$((U1-U0)) cache-restore=$((U2-U1)) cache-save=$((U3-U2)) upload=$((U4-U3)) download=$((U5-U4))" | tee -a "$GITHUB_STEP_SUMMARY"
