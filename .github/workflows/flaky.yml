@@ -1,0 +1,7 @@
+name: flaky
+on: workflow_dispatch
+jobs:
+  once:
+    runs-on: ubuntu-latest
+    steps:
+      - run: test "${{ github.run_attempt }}" != 1
